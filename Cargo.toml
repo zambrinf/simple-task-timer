@@ -1,0 +1,16 @@
+[package]
+name = "simple-task-timer"
+version = "0.1.0"
+edition = "2021"
+authors = ["Felipe Zambrin"]
+description = "A simple timer for keeping track of your tasks without leaving the terminal"
+license = "GPL-3.0"
+
+[dependencies]
+clap = {version = "4.3.19", features = ["cargo"]}
+serde = { version = "1.0.180", features = ["derive"] }
+serde_json = "1.0.104"
+
+[[bin]]
+name = "timer"
+path = "src/main.rs"
