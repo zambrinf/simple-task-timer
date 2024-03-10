@@ -1,3 +1,4 @@
+use chrono::{DateTime, Local};
 use clap::{arg, command, value_parser, ArgAction, Command};
 use core::panic;
 use serde::{Deserialize, Serialize};
@@ -49,7 +50,7 @@ fn load_tasks(task_type: &str) -> HashMap<u32, Task> {
     serde_json::from_str(&contents).unwrap()
 }
 
-fn list_tasks(tasks: &HashMap<u32, Task>, list_all: bool) {
+fn list_tasks(tasks: &HashMap<u32, Task>, list_all: bool, list_timestamp: bool) {
     let mut ids: Vec<u32> = tasks
         .values()
         .filter(|x| x.running || list_all)
@@ -74,19 +75,29 @@ fn list_tasks(tasks: &HashMap<u32, Task>, list_all: bool) {
         let task = tasks.get(&id).unwrap();
         let duration = get_current_duration(task);
         total_duration_tasks += duration;
-        print_task_short(&task);
+        print_task_short(&task, list_timestamp);
     }
     let formatted_total_duration = format_duration(total_duration_tasks);
     println!("\nTotal: {formatted_total_duration}");
 }
 
-fn print_task_short(task: &Task) {
+fn print_task_short(task: &Task, list_timestamp: bool) {
     let duration = get_current_duration(task);
     let formatted_duration = format_duration(duration);
     let prefix = if task.running { "#" } else { "" };
+    let timestamp: String = if list_timestamp && task.last_run.is_some() {
+        let last_run = task.last_run.unwrap();
+        let datetime: DateTime<Local> = last_run.into();
+        format!(
+            "- Last time: {}",
+            datetime.format("%d/%m/%Y %T").to_string()
+        )
+    } else {
+        String::new()
+    };
     println!(
-        "{}[{}] '{}': {}",
-        prefix, task.id, task.name, formatted_duration
+        "{}[{}] '{}': {} {}",
+        prefix, task.id, task.name, formatted_duration, timestamp
     );
 }
 
@@ -318,6 +329,11 @@ fn main() {
                     arg!(-a --all "List all tasks total time")
                         .required(false)
                         .action(ArgAction::SetTrue),
+                )
+                .arg(
+                    arg!(-l --lasttime "List the last time tasks ran")
+                        .required(false)
+                        .action(ArgAction::SetTrue),
                 ),
         )
         .subcommand(
@@ -387,7 +403,8 @@ fn main() {
 
     if let Some(list_matches) = matches.subcommand_matches("list") {
         let list_all = list_matches.get_flag("all");
-        list_tasks(&tasks, list_all);
+        let list_timestamp = list_matches.get_flag("lasttime");
+        list_tasks(&tasks, list_all, list_timestamp);
     } else if let Some(create_matches) = matches.subcommand_matches("create") {
         let start = create_matches.get_flag("start");
         let task_name = create_matches
