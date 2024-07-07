@@ -3,17 +3,15 @@ use std::{env, io};
 use std::collections::HashMap;
 use std::time::SystemTime;
 
-use chrono::{DateTime, Local};
 use clap::{arg, ArgAction, command, Command, value_parser};
 
 use persistence::load_tasks;
 use persistence::save_tasks;
-use task_model::Task;
+use task::Task;
 use utils::format_duration;
-use utils::parse_time_string_to_seconds;
 
 mod persistence;
-mod task_model;
+mod task;
 mod utils;
 
 fn list_tasks(tasks: &HashMap<u32, Task>, list_all: bool, list_timestamp: bool) {
@@ -35,42 +33,12 @@ fn list_tasks(tasks: &HashMap<u32, Task>, list_all: bool, list_timestamp: bool) 
     let mut total_duration_tasks = 0;
     for id in ids {
         let task = tasks.get(&id).unwrap();
-        let duration = get_current_duration(task);
+        let duration = task.current_duration();
         total_duration_tasks += duration;
-        print_task_short(&task, list_timestamp);
+        println!("{}", task.to_print_string(list_timestamp))
     }
     let formatted_total_duration = format_duration(total_duration_tasks);
     println!("\nTotal: {formatted_total_duration}");
-}
-
-fn print_task_short(task: &Task, list_timestamp: bool) {
-    let duration = get_current_duration(task);
-    let formatted_duration = format_duration(duration);
-    let prefix = if task.running { "#" } else { "" };
-    let timestamp: String = if list_timestamp && task.last_run.is_some() {
-        let last_run = task.last_run.unwrap();
-        let datetime: DateTime<Local> = last_run.into();
-        format!(
-            "- Last time: {}",
-            datetime.format("%d/%m/%Y %T").to_string()
-        )
-    } else {
-        String::new()
-    };
-    println!(
-        "{}[{}] '{}': {} {}",
-        prefix, task.id, task.name, formatted_duration, timestamp
-    );
-}
-
-fn get_current_duration(task: &Task) -> u64 {
-    let mut duration = task.total_duration_seconds;
-    if task.running {
-        let last_run = task.last_run.unwrap();
-        let current_running_duration = last_run.elapsed().unwrap_or_default().as_secs();
-        duration += current_running_duration;
-    }
-    duration
 }
 
 fn create_task(tasks: &mut HashMap<u32, Task>, task_name: &str, start: bool) {
@@ -98,88 +66,71 @@ fn delete_task(tasks: &mut HashMap<u32, Task>, task_id: &u32) {
         tasks.remove(&task_id);
         println!("Task {task_id} deleted");
     } else {
-        println!("Task with id {task_id} does not exist");
+        task_does_not_exist(task_id);
     }
 }
 
-fn start_task(tasks: &mut HashMap<u32, Task>, task_id: &u32) {
-    if let Some(task) = tasks.get_mut(&task_id) {
-        if task.running {
-            println!("Task {task_id} is already running");
-            return;
+fn start_task(task: &mut Task) {
+    let res = task.start();
+    match res {
+        Ok(_) => {
+            println!("Task {} started", task.id);
         }
-        task.running = true;
-        task.last_run = Some(SystemTime::now());
-        println!("Task {task_id} started");
-    } else {
-        println!("Task with id {task_id} does not exist");
-    }
-}
-
-fn stop_task(tasks: &mut HashMap<u32, Task>, task_id: &u32) {
-    if let Some(task) = tasks.get_mut(&task_id) {
-        if !task.running {
-            println!("Task {task_id} is not currently running");
-            return;
+        Err(_) => {
+            println!("Task {} is already running", task.id);
         }
-        task.running = false;
-        let mut duration = task.total_duration_seconds;
-        let last_run = task.last_run.unwrap();
-        let current_running_duration = last_run.elapsed().unwrap_or_default().as_secs();
-        duration += current_running_duration;
-        task.total_duration_seconds = duration;
-        println!("Task {task_id} stopped");
-    } else {
-        println!("Task with id {task_id} does not exist");
     }
 }
 
-fn rename_task(tasks: &mut HashMap<u32, Task>, task_id: &u32, task_name: &str) {
-    if let Some(task) = tasks.get_mut(&task_id) {
-        task.name = String::from(task_name);
-        println!("Task {task_id} rename to {task_name}");
-    } else {
-        println!("Task with id {task_id} does not exist");
-    }
-}
-
-fn add_time(tasks: &mut HashMap<u32, Task>, task_id: &u32, time: &str) {
-    if let Some(task) = tasks.get_mut(&task_id) {
-        let additional_time = parse_time_string_to_seconds(time).unwrap();
-        task.total_duration_seconds = task.total_duration_seconds + additional_time;
-        let duration_formatted = format_duration(task.total_duration_seconds);
-        println!("Added {time} to task with id {task_id}, new timer: {duration_formatted}");
-    } else {
-        println!("Task with id {task_id} does not exist");
-    }
-}
-
-fn subtract_time(tasks: &mut HashMap<u32, Task>, task_id: &u32, time: &str) {
-    if let Some(task) = tasks.get_mut(&task_id) {
-        let subtract_time = parse_time_string_to_seconds(time).unwrap();
-        if task.total_duration_seconds < subtract_time {
-            println!("Task {task_id} does not have enough time to subtract");
-            return;
+fn stop_task(task: &mut Task) {
+    let res = task.stop();
+    match res {
+        Ok(_) => {
+            println!("Task {} stopped", task.id);
         }
-        task.total_duration_seconds = task.total_duration_seconds - subtract_time;
-        let duration_formatted = format_duration(task.total_duration_seconds);
-        println!("Subtracted {time} from task {task_id}, new timer: {duration_formatted}");
-    } else {
-        println!("Task with id {task_id} does not exist");
+        Err(_) => {
+            println!("Task {} is not currently running", task.id);
+        }
     }
 }
 
-fn set_time(tasks: &mut HashMap<u32, Task>, task_id: &u32, time: &str) {
-    if let Some(task) = tasks.get_mut(&task_id) {
-        if task.running {
-            println!("Task {task_id} is currently running, stop it before setting a new time.");
-            return;
+fn rename_task(task: &mut Task, task_name: &str) {
+    task.rename(task_name);
+    println!("Task {} renamed to {}", task.id, task_name);
+}
+
+fn task_does_not_exist(task_id: &u32) {
+    println!("Task with id {task_id} does not exist");
+}
+
+fn add_time(task: &mut Task, time: &str) {
+    task.add_time(time);
+    let duration_formatted = task.formatted_duration();
+    println!("Added {time} to task with id {}, new timer: {duration_formatted}", task.id);
+}
+
+fn subtract_time(task: &mut Task, time: &str) {
+    let res = task.subtract_time(time);
+    match res {
+        Ok(_) => {
+            let duration_formatted = task.formatted_duration();
+            println!("Subtracted {time} from task {}, new timer: {duration_formatted}", task.id);
         }
-        let new_total_duration = parse_time_string_to_seconds(time).unwrap();
-        task.total_duration_seconds = new_total_duration;
-        println!("New time {time} set for task {task_id}");
-    } else {
-        println!("Task with id {task_id} does not exist");
+        Err(_) => {
+            println!("Task {} does not have enough time to subtract", task.id);
+        }
+    }
+}
+
+fn set_time(task: &mut Task, time: &str) {
+    let res = task.set_time(time);
+    match res {
+        Ok(_) => {
+            println!("New time {time} set for task {}", task.id);
+        }
+        Err(_) => {
+            println!("Task {} is currently running, stop it before setting a new time.", task.id);
+        }
     }
 }
 
@@ -203,7 +154,7 @@ fn archive_task(tasks: &mut HashMap<u32, Task>, task_id: &u32) {
         save_tasks("archive", &archived_tasks);
         println!("Task {task_id} archived with archive id {id}");
     } else {
-        println!("Task with id {task_id} does not exist");
+        task_does_not_exist(task_id);
     }
 }
 
@@ -227,6 +178,14 @@ fn clear_tasks(tasks: &mut HashMap<u32, Task>, task_type: &str) {
     }
     tasks.clear();
     println!("Tasks cleared.");
+}
+
+fn get_task<'a>(tasks: &'a mut HashMap<u32, Task>, task_id: &u32) -> Result<&'a mut Task, ()> {
+    return if let Some(task) = tasks.get_mut(&task_id) {
+        Ok(task)
+    } else {
+        Err(())
+    };
 }
 
 fn get_task_id_arg(start_matches: &clap::ArgMatches) -> u32 {
@@ -339,34 +298,64 @@ fn main() {
         delete_task(&mut tasks, &task_id);
     } else if let Some(start_matches) = matches.subcommand_matches("start") {
         let task_id = get_task_id_arg(start_matches);
-        start_task(&mut tasks, &task_id);
+        let task_res = get_task(&mut tasks, &task_id);
+        if let Ok(task) = task_res {
+            start_task(task);
+        } else {
+            task_does_not_exist(&task_id);
+        }
     } else if let Some(stop_matches) = matches.subcommand_matches("stop") {
         let task_id = get_task_id_arg(stop_matches);
-        stop_task(&mut tasks, &task_id);
+        let task_res = get_task(&mut tasks, &task_id);
+        if let Ok(task) = task_res {
+            stop_task(task);
+        } else {
+            task_does_not_exist(&task_id);
+        }
     } else if let Some(rename_matches) = matches.subcommand_matches("rename") {
         let task_id = get_task_id_arg(rename_matches);
         let task_name = rename_matches
             .get_one::<String>("name")
             .expect("Name required");
-        rename_task(&mut tasks, &task_id, task_name);
+        let task_res = get_task(&mut tasks, &task_id);
+        if let Ok(task) = task_res {
+            rename_task(task, task_name);
+        } else {
+            task_does_not_exist(&task_id);
+        }
     } else if let Some(add_matches) = matches.subcommand_matches("add") {
         let task_id = get_task_id_arg(add_matches);
         let time: &String = add_matches
             .get_one::<String>("time")
             .expect("Time required");
-        add_time(&mut tasks, &task_id, time);
+        let task_res = get_task(&mut tasks, &task_id);
+        if let Ok(task) = task_res {
+            add_time(task, time);
+        } else {
+            task_does_not_exist(&task_id);
+        }
     } else if let Some(sub_matches) = matches.subcommand_matches("sub") {
         let task_id = get_task_id_arg(sub_matches);
         let time: &String = sub_matches
             .get_one::<String>("time")
             .expect("Time required");
-        subtract_time(&mut tasks, &task_id, time);
+        let task_res = get_task(&mut tasks, &task_id);
+        if let Ok(task) = task_res {
+            subtract_time(task, time);
+        } else {
+            task_does_not_exist(&task_id);
+        }
     } else if let Some(set_matches) = matches.subcommand_matches("set") {
         let task_id = get_task_id_arg(set_matches);
         let time: &String = set_matches
             .get_one::<String>("time")
             .expect("Time required");
-        set_time(&mut tasks, &task_id, time);
+        let task_res = get_task(&mut tasks, &task_id);
+        if let Ok(task) = task_res {
+            set_time(task, time);
+        } else {
+            task_does_not_exist(&task_id);
+        }
     } else if let Some(archive_matches) = matches.subcommand_matches("archive") {
         if task_type == "archive" {
             println!("Cannot archive archived tasks");

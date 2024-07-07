@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::task_model::Task;
+use crate::task::Task;
 
 fn get_app_folder_path() -> PathBuf {
     let mut app_path = env::current_exe().expect("Could not get the current executable path");
