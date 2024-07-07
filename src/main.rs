@@ -1,54 +1,20 @@
-use chrono::{DateTime, Local};
-use clap::{arg, command, value_parser, ArgAction, Command};
 use core::panic;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::{Read, Write};
-use std::path::PathBuf;
-use std::time::SystemTime;
 use std::{env, io};
+use std::collections::HashMap;
+use std::time::SystemTime;
 
-#[derive(Serialize, Deserialize)]
-struct Task {
-    id: u32,
-    name: String,
-    total_duration_seconds: u64,
-    running: bool,
-    last_run: Option<SystemTime>,
-}
+use chrono::{DateTime, Local};
+use clap::{arg, ArgAction, command, Command, value_parser};
 
-fn get_app_folder_path() -> PathBuf {
-    let mut app_path = env::current_exe().expect("Could get the current executable path");
-    app_path.pop();
-    return app_path;
-}
+use task_model::Task;
 
-fn save_tasks(task_type: &str, tasks: &HashMap<u32, Task>) {
-    let app_folder_path = get_app_folder_path();
-    let mut json_file = String::from(task_type);
-    json_file.push_str(".json");
-    let current_tasks_path: PathBuf = app_folder_path.join(json_file);
-    let mut json_path = File::create(current_tasks_path).unwrap();
-    let task_string_json = serde_json::to_string_pretty(&tasks).unwrap();
-    json_path.write_all(task_string_json.as_bytes()).unwrap();
-}
+use crate::persistence::load_tasks;
+use crate::persistence::save_tasks;
+use crate::utils::format_duration;
 
-fn load_tasks(task_type: &str) -> HashMap<u32, Task> {
-    let app_folder_path = get_app_folder_path();
-    let mut json_file = String::from(task_type);
-    json_file.push_str(".json");
-    let current_tasks_path: PathBuf = app_folder_path.join(json_file);
-
-    if !current_tasks_path.exists() {
-        return HashMap::new();
-    }
-
-    let mut tasks_file = File::open(&current_tasks_path).unwrap();
-    let mut contents = String::new();
-    tasks_file.read_to_string(&mut contents).unwrap();
-    serde_json::from_str(&contents).unwrap()
-}
+mod persistence;
+mod task_model;
+mod utils;
 
 fn list_tasks(tasks: &HashMap<u32, Task>, list_all: bool, list_timestamp: bool) {
     let mut ids: Vec<u32> = tasks
@@ -111,17 +77,10 @@ fn get_current_duration(task: &Task) -> u64 {
     duration
 }
 
-fn format_duration(duration_seconds: u64) -> String {
-    let seconds = duration_seconds % 60;
-    let minutes = (duration_seconds / 60) % 60;
-    let hours = duration_seconds / 3600;
-    format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
-}
-
 fn create_task(tasks: &mut HashMap<u32, Task>, task_name: &str, start: bool) {
     let id = find_new_unique_id(&tasks);
     let task = Task {
-        id: id,
+        id,
         name: String::from(task_name),
         total_duration_seconds: 0,
         running: start,
@@ -235,7 +194,7 @@ fn subtract_time(tasks: &mut HashMap<u32, Task>, task_id: &u32, time: &str) {
     if let Some(task) = tasks.get_mut(&task_id) {
         let subtract_time = parse_time_to_seconds(time).expect("Error parsing the time");
         if task.total_duration_seconds < subtract_time {
-            println!("Task {task_id} does not have enought time to subtract");
+            println!("Task {task_id} does not have enough time to subtract");
             return;
         }
         task.total_duration_seconds = task.total_duration_seconds - subtract_time;
@@ -390,7 +349,7 @@ fn main() {
                 .about("Move a task to archive file")
                 .arg(arg!([task_id] "Task id").required(true)),
         )
-        .subcommand(Command::new("clear").about("Clear all tasks of the selected tasktype"))
+        .subcommand(Command::new("clear").about("Clear all tasks of the selected task type"))
         .get_matches();
 
     let task_type = match matches.get_one::<String>("tasktype").unwrap().as_str() {
@@ -456,4 +415,22 @@ fn main() {
     }
 
     save_tasks(task_type, &tasks);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn list_all_tasks() {
+        let mut tasks = HashMap::new();
+        tasks.insert(1, task_model::Task {
+            id: 1,
+            name: String::from("my task"),
+            total_duration_seconds: 0,
+            running: false,
+            last_run: None,
+        });
+        list_tasks(&tasks, true, false)
+    }
 }
