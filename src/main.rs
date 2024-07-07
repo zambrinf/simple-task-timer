@@ -6,11 +6,11 @@ use std::time::SystemTime;
 use chrono::{DateTime, Local};
 use clap::{arg, ArgAction, command, Command, value_parser};
 
+use persistence::load_tasks;
+use persistence::save_tasks;
 use task_model::Task;
-
-use crate::persistence::load_tasks;
-use crate::persistence::save_tasks;
-use crate::utils::format_duration;
+use utils::format_duration;
+use utils::parse_time_string_to_seconds;
 
 mod persistence;
 mod task_model;
@@ -27,11 +27,7 @@ fn list_tasks(tasks: &HashMap<u32, Task>, list_all: bool, list_timestamp: bool) 
     if ids.is_empty() {
         println!(
             "There are no {}tasks.",
-            if list_all {
-                String::from("")
-            } else {
-                String::from("running ")
-            }
+            if list_all { String::from("") } else { String::from("running ") }
         );
         return;
     }
@@ -91,13 +87,10 @@ fn create_task(tasks: &mut HashMap<u32, Task>, task_name: &str, start: bool) {
 }
 
 fn find_new_unique_id(tasks: &HashMap<u32, Task>) -> u32 {
-    let mut max_id = 0;
-    for task in tasks.values() {
-        if task.id > max_id {
-            max_id = task.id;
-        }
-    }
-    max_id + 1
+    tasks.keys()
+        .map(|k| *k)
+        .max()
+        .unwrap_or_default() + 1
 }
 
 fn delete_task(tasks: &mut HashMap<u32, Task>, task_id: &u32) {
@@ -152,7 +145,7 @@ fn rename_task(tasks: &mut HashMap<u32, Task>, task_id: &u32, task_name: &str) {
 
 fn add_time(tasks: &mut HashMap<u32, Task>, task_id: &u32, time: &str) {
     if let Some(task) = tasks.get_mut(&task_id) {
-        let additional_time = parse_time_to_seconds(time).expect("Error parsing the time");
+        let additional_time = parse_time_string_to_seconds(time).unwrap();
         task.total_duration_seconds = task.total_duration_seconds + additional_time;
         let duration_formatted = format_duration(task.total_duration_seconds);
         println!("Added {time} to task with id {task_id}, new timer: {duration_formatted}");
@@ -161,38 +154,9 @@ fn add_time(tasks: &mut HashMap<u32, Task>, task_id: &u32, time: &str) {
     }
 }
 
-fn parse_time_to_seconds(input: &str) -> Option<u64> {
-    let has_hours = input.contains('h');
-    let has_minutes = input.contains('m');
-    if !has_hours && !has_minutes {
-        return None;
-    }
-    let mut hours: u64 = 0;
-    let mut minutes: u64 = 0;
-    if has_hours {
-        let h_index = input.find('h').unwrap();
-        let split_at = input.split_at(h_index);
-        hours += String::from(split_at.0)
-            .parse::<u64>()
-            .expect("could not extract hours");
-    }
-    if has_minutes {
-        let m_index = input.find('m').unwrap();
-        let h_index = match input.find('h') {
-            Some(index) => index + 1,
-            None => 0,
-        };
-        let slice = &input[h_index..m_index];
-        minutes += String::from(slice)
-            .parse::<u64>()
-            .expect("could not extract hours");
-    }
-    Some(hours * 3600 + minutes * 60)
-}
-
 fn subtract_time(tasks: &mut HashMap<u32, Task>, task_id: &u32, time: &str) {
     if let Some(task) = tasks.get_mut(&task_id) {
-        let subtract_time = parse_time_to_seconds(time).expect("Error parsing the time");
+        let subtract_time = parse_time_string_to_seconds(time).unwrap();
         if task.total_duration_seconds < subtract_time {
             println!("Task {task_id} does not have enough time to subtract");
             return;
@@ -211,7 +175,7 @@ fn set_time(tasks: &mut HashMap<u32, Task>, task_id: &u32, time: &str) {
             println!("Task {task_id} is currently running, stop it before setting a new time.");
             return;
         }
-        let new_total_duration = parse_time_to_seconds(time).expect("Error parsing the time");
+        let new_total_duration = parse_time_string_to_seconds(time).unwrap();
         task.total_duration_seconds = new_total_duration;
         println!("New time {time} set for task {task_id}");
     } else {
@@ -424,7 +388,7 @@ mod tests {
     #[test]
     fn list_all_tasks() {
         let mut tasks = HashMap::new();
-        tasks.insert(1, task_model::Task {
+        tasks.insert(1, Task {
             id: 1,
             name: String::from("my task"),
             total_duration_seconds: 0,
@@ -432,5 +396,26 @@ mod tests {
             last_run: None,
         });
         list_tasks(&tasks, true, false)
+    }
+
+    #[test]
+    fn unique_id() {
+        let mut tasks = HashMap::new();
+        tasks.insert(1, Task {
+            id: 1,
+            name: String::from("my task"),
+            total_duration_seconds: 0,
+            running: false,
+            last_run: None,
+        });
+        let id = find_new_unique_id(&tasks);
+        assert_eq!(id, 2);
+    }
+
+    #[test]
+    fn unique_id_empty_tasks() {
+        let tasks = HashMap::new();
+        let id = find_new_unique_id(&tasks);
+        assert_eq!(id, 1);
     }
 }
