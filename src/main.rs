@@ -3,7 +3,7 @@ use std::{env, io};
 use std::collections::HashMap;
 use std::time::SystemTime;
 
-use clap::{arg, ArgAction, command, Command, value_parser};
+use clap::{arg, ArgAction, ArgMatches, command, Command, value_parser};
 
 use persistence::load_tasks;
 use persistence::save_tasks;
@@ -61,12 +61,32 @@ fn find_new_unique_id(tasks: &HashMap<u32, Task>) -> u32 {
         .unwrap_or_default() + 1
 }
 
-fn delete_task(tasks: &mut HashMap<u32, Task>, task_id: &u32) {
-    if let Some(_task) = tasks.get(&task_id) {
+fn delete_task_by_id(tasks: &mut HashMap<u32, Task>, task_id: &u32) {
+    if tasks.contains_key(task_id) {
         tasks.remove(&task_id);
         println!("Task {task_id} deleted");
     } else {
         task_does_not_exist(task_id);
+    }
+}
+
+fn delete_task_by_name(tasks: &mut HashMap<u32, Task>, task_name: &str) {
+    let filter: Vec<&Task> = tasks.values()
+        .filter(|t| t.name.eq(task_name))
+        .collect();
+    if filter.len() > 1 {
+        println!("Error: more than one task with name {task_name}.");
+    } else {
+        let task_opt = filter.last();
+        match task_opt {
+            None => {
+                task_does_not_exist_name(task_name);
+            }
+            Some(task) => {
+                tasks.remove(&task.id.clone());
+                println!("Task {task_name} deleted");
+            }
+        }
     }
 }
 
@@ -101,6 +121,10 @@ fn rename_task(task: &mut Task, task_name: &str) {
 
 fn task_does_not_exist(task_id: &u32) {
     println!("Task with id {task_id} does not exist");
+}
+
+fn task_does_not_exist_name(task_name: &str) {
+    println!("Task with name {task_name} does not exist");
 }
 
 fn add_time(task: &mut Task, time: &str) {
@@ -188,7 +212,7 @@ fn get_task<'a>(tasks: &'a mut HashMap<u32, Task>, task_id: &u32) -> Result<&'a 
     };
 }
 
-fn get_task_id_arg(start_matches: &clap::ArgMatches) -> u32 {
+fn get_task_id_arg(start_matches: &ArgMatches) -> u32 {
     let task_id = start_matches
         .get_one::<String>("task_id")
         .expect("Id required")
@@ -232,6 +256,11 @@ fn main() {
             Command::new("delete")
                 .about("Delete a task")
                 .arg(arg!([task_id] "Task id").required(true)),
+        )
+        .subcommand(
+            Command::new("delname")
+                .about("Delete a task by name")
+                .arg(arg!([name] "Task name").required(true)),
         )
         .subcommand(
             Command::new("start")
@@ -295,7 +324,12 @@ fn main() {
         create_task(&mut tasks, task_name, start);
     } else if let Some(delete_matches) = matches.subcommand_matches("delete") {
         let task_id = get_task_id_arg(delete_matches);
-        delete_task(&mut tasks, &task_id);
+        delete_task_by_id(&mut tasks, &task_id);
+    } else if let Some(delete_name_matches) = matches.subcommand_matches("delname") {
+        let task_name = delete_name_matches
+            .get_one::<String>("name")
+            .expect("Name required");
+        delete_task_by_name(&mut tasks, &task_name);
     } else if let Some(start_matches) = matches.subcommand_matches("start") {
         let task_id = get_task_id_arg(start_matches);
         let task_res = get_task(&mut tasks, &task_id);
