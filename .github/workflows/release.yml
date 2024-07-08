@@ -28,8 +28,8 @@ jobs:
 
       - name: Zip binaries
         run: |
-          zip -j github-actions-sample-linux-x86_64.zip target/x86_64-unknown-linux-gnu/release/github-actions-sample
-          zip -j github-actions-sample-windows-x86_64.zip target/x86_64-pc-windows-gnu/release/github-actions-sample.exe
+          zip -j simple-task-timer-linux-x86_64.zip target/x86_64-unknown-linux-gnu/release/timer
+          zip -j simple-task-timer-windows-x86_64.zip target/x86_64-pc-windows-gnu/release/timer.exe
 
       - name: Create release
         id: create_release
@@ -40,5 +40,5 @@ jobs:
         with:
           tag_name: ${{ github.ref }}
           files: |
-            github-actions-sample-linux-x86_64.zip
-            github-actions-sample-windows-x86_64.zip
+            simple-task-timer-linux-x86_64.zip
+            simple-task-timer-windows-x86_64.zip
