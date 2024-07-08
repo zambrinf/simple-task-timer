@@ -3,20 +3,13 @@
 A simple timer for keeping track of your tasks without leaving the terminal.
 
 ```
-$ timer list -a
-[1] 'working-on-my-app': 45:30:00
-#[2] 'code-review-pr-x': 00:20:02
-
-Total: 45:50:02
-```
-
-```
 Usage: timer [OPTIONS] [COMMAND]
 
 Commands:
-  list     List running tasks
+  list     List saved total time of current running tasks added to time elapsed from when it started running
   create   Create a new task
   delete   Delete a task
+  delname  Delete a task by name
   start    Start running a task timer
   stop     Stop running a task timer
   rename   Rename a task
@@ -24,7 +17,7 @@ Commands:
   sub      Subtract time from a task
   set      Set the total duration time for a task
   archive  Move a task to archive file
-  clear    Clear all tasks of the selected tasktype
+  clear    Clear all tasks of the selected task type
   help     Print this message or the help of the given subcommand(s)
 
 Options:
@@ -34,6 +27,17 @@ Options:
 ```
 
 ## Examples
+
+List all tasks using `-a` option, currently running tasks are marked with `#`
+and they are updated to add the time from when it started running
+
+```
+$ timer list -a
+[1] 'working-on-my-app': 45:30:00
+#[2] 'code-review-pr-x': 00:20:02
+
+Total: 45:50:02
+```
 
 Create a task and start running its timer
 
@@ -70,17 +74,6 @@ $ timer list
 #[1] 'working-on-my-app': 23:35:02
 
 Total: 23:35:02
-```
-
-List all tasks using `-a` option, currently running tasks are marked with `#`
-and they are updated to add the time from when it started running
-
-```
-$ timer list -a
-#[1] 'working-on-my-app': 23:35:39
-[2] 'code-review-pr-x': 00:20:00
-
-Total: 23:55:39
 ```
 
 Set a new time for a task
