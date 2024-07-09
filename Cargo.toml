@@ -5,6 +5,9 @@ edition = "2021"
 authors = ["Felipe Zambrin"]
 description = "A simple timer for keeping track of your tasks without leaving the terminal"
 license = "GPL-3.0"
+repository = "https://github.com/zambrinf/simple-task-timer"
+homepage = "https://github.com/zambrinf/simple-task-timer"
+readme = "README.md"
 
 [dependencies]
 clap = {version = "4.3.19", features = ["cargo"]}
