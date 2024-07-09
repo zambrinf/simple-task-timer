@@ -2,6 +2,16 @@
 
 A simple timer for keeping track of your tasks without leaving the terminal.
 
+## Installation
+
+1. Go to [releases page](https://github.com/zambrinf/simple-task-timer/releases) and find the latest release.
+2. Download the zip file corresponding to your operating system.
+3. Unzip the file to extract the executable.
+4. Place the executable in a folder where it can create a file to store the tasks (make sure you have write permissions for this folder).
+5. Add this folder to your PATH.
+6. Open a new terminal and run `timer --help`.
+
+You should see the message below:
 ```
 Usage: timer [OPTIONS] [COMMAND]
 
@@ -123,14 +133,11 @@ $ timer -t archive list -a
 There are no tasks.
 ```
 
-## Installation
-
-Run the build command and copy the executable to wherever you want to store the
-files. Don't forget to add to path.
+## Build from source
 
 ```
 // Linux
-cargo build --release
+cargo build --release x86_64-unknown-linux-gnu
 
 // Windows
 cargo build --release --target x86_64-pc-windows-gnu
