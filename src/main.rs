@@ -14,7 +14,7 @@ mod persistence;
 mod task;
 mod utils;
 
-fn list_tasks(tasks: &HashMap<u32, Task>, list_all: bool, list_timestamp: bool) {
+fn list_tasks(tasks: &HashMap<u32, Task>, list_all: bool, show_timestamp: bool, show_base_timer: bool) {
     let mut ids: Vec<u32> = tasks
         .values()
         .filter(|x| x.running || list_all)
@@ -35,7 +35,7 @@ fn list_tasks(tasks: &HashMap<u32, Task>, list_all: bool, list_timestamp: bool) 
         let task = tasks.get(&id).unwrap();
         let duration = task.current_duration();
         total_duration_tasks += duration;
-        println!("{}", task.to_print_string(list_timestamp))
+        println!("{}", task.to_print_string(show_timestamp, show_base_timer))
     }
     let formatted_total_duration = format_duration(total_duration_tasks);
     println!("\nTotal: {formatted_total_duration}");
@@ -237,7 +237,12 @@ fn main() {
                         .action(ArgAction::SetTrue),
                 )
                 .arg(
-                    arg!(-l --lasttime "List the last time tasks ran")
+                    arg!(-l --lasttime "Show the last time tasks ran")
+                        .required(false)
+                        .action(ArgAction::SetTrue),
+                )
+                .arg(
+                    arg!(-b --base "Show the base timer, without adding running elapsed time")
                         .required(false)
                         .action(ArgAction::SetTrue),
                 ),
@@ -314,8 +319,9 @@ fn main() {
 
     if let Some(list_matches) = matches.subcommand_matches("list") {
         let list_all = list_matches.get_flag("all");
-        let list_timestamp = list_matches.get_flag("lasttime");
-        list_tasks(&tasks, list_all, list_timestamp);
+        let show_timestamp = list_matches.get_flag("lasttime");
+        let show_base_timer = list_matches.get_flag("base");
+        list_tasks(&tasks, list_all, show_timestamp, show_base_timer);
     } else if let Some(create_matches) = matches.subcommand_matches("create") {
         let start = create_matches.get_flag("start");
         let task_name = create_matches
@@ -418,7 +424,7 @@ mod tests {
             running: false,
             last_run: None,
         });
-        list_tasks(&tasks, true, false)
+        list_tasks(&tasks, true, false, false);
     }
 
     #[test]
@@ -441,4 +447,5 @@ mod tests {
         let id = find_new_unique_id(&tasks);
         assert_eq!(id, 1);
     }
+
 }
