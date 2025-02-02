@@ -1,9 +1,12 @@
 name: release
 
 on:
-  create:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag for the release (e.g., v1.0.0)'
+        required: true
+        type: string
 
 jobs:
   build:
@@ -11,6 +14,16 @@ jobs:
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+      - name: Create and push tag
+        run: |
+          git tag ${{ github.event.inputs.tag_name }}
+          git push origin ${{ github.event.inputs.tag_name }}
 
       - name: Install additional targets
         run: |
@@ -37,8 +50,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          name: ${{ github.ref_name }}
+          tag_name: ${{ github.event.inputs.tag_name }}
+          name: ${{ github.event.inputs.tag_name }}
           files: |
             simple-task-timer-linux-x86_64.zip
             simple-task-timer-windows-x86_64.zip

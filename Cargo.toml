@@ -1,6 +1,6 @@
 [package]
 name = "simple-task-timer"
-version = "0.3.0"
+version = "0.5.0"
 edition = "2021"
 authors = ["Felipe Zambrin"]
 description = "A simple timer for keeping track of your tasks without leaving the terminal"
@@ -10,7 +10,7 @@ homepage = "https://github.com/zambrinf/simple-task-timer"
 readme = "README.md"
 
 [dependencies]
-clap = {version = "4.3.19", features = ["cargo"]}
+clap = { version = "4.3.19", features = ["cargo"] }
 serde = { version = "1.0.180", features = ["derive"] }
 serde_json = "1.0.104"
 chrono = "0.4.35"
