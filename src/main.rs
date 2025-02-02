@@ -114,6 +114,18 @@ fn stop_task(task: &mut Task) {
     }
 }
 
+fn cancel_task(task: &mut Task) {
+    let res = task.cancel();
+    match res {
+        Ok(_) => {
+            println!("Task {} cancelled", task.id);
+        }
+        Err(_) => {
+            println!("Task {} is not currently running", task.id);
+        }
+    }
+}
+
 fn rename_task(task: &mut Task, task_name: &str) {
     task.rename(task_name);
     println!("Task {} renamed to {}", task.id, task_name);
@@ -248,6 +260,11 @@ fn main() {
                 ),
         )
         .subcommand(
+            Command::new("cancel")
+                .about("Cancel a running task, returning to its previous state")
+                .arg(arg!([task_id] "Task id").required(true)),
+        )
+        .subcommand(
             Command::new("create")
                 .about("Create a new task")
                 .arg(arg!([name] "Task name").required(true))
@@ -322,6 +339,14 @@ fn main() {
         let show_timestamp = list_matches.get_flag("lasttime");
         let show_base_timer = list_matches.get_flag("base");
         list_tasks(&tasks, list_all, show_timestamp, show_base_timer);
+    } else if let Some(start_matches) = matches.subcommand_matches("cancel") {
+        let task_id = get_task_id_arg(start_matches);
+        let task_res = get_task(&mut tasks, &task_id);
+        if let Ok(task) = task_res {
+            cancel_task(task);
+        } else {
+            task_does_not_exist(&task_id);
+        }
     } else if let Some(create_matches) = matches.subcommand_matches("create") {
         let start = create_matches.get_flag("start");
         let task_name = create_matches

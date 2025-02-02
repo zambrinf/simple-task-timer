@@ -86,6 +86,14 @@ impl Task {
         Ok(())
     }
 
+    pub fn cancel(&mut self) -> Result<(), ()> {
+        if !self.running {
+            return Err(());
+        }
+        self.running = false;
+        Ok(())
+    }
+
     pub fn rename(&mut self, task_name: &str) {
         self.name = String::from(task_name);
     }
@@ -174,5 +182,32 @@ mod tests {
         };
         let print_string = task.to_print_string(false, true);
         assert_eq!("#[1] 'my task': 00:01:05 - Base timer: 00:01:00", print_string);
+    }
+
+    #[test]
+    fn cancel_running_task() {
+        let mut task = Task {
+            id: 1,
+            name: String::from("my task"),
+            total_duration_seconds: 60,
+            running: true,
+            last_run: Some(SystemTime::now().sub(std::time::Duration::new(5, 0))),
+        };
+        let res = task.cancel();
+        assert_eq!(false, res.is_err());
+        assert_eq!(false, task.running);
+    }
+
+    #[test]
+    fn cancel_running_task_error_not_running() {
+        let mut task = Task {
+            id: 1,
+            name: String::from("my task"),
+            total_duration_seconds: 60,
+            running: false,
+            last_run: Some(SystemTime::now().sub(std::time::Duration::new(5, 0))),
+        };
+        let res = task.cancel();
+        assert_eq!(true, res.is_err());
     }
 }

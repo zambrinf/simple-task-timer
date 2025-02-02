@@ -17,6 +17,7 @@ Usage: timer [OPTIONS] [COMMAND]
 
 Commands:
   list     List saved total time of current running tasks added to time elapsed from when it started running
+  cancel   Cancel the running of a task without adding the elapsed time to the timer
   create   Create a new task
   delete   Delete a task
   delname  Delete a task by name
