@@ -6,7 +6,7 @@ A simple timer for keeping track of your tasks without leaving the terminal.
 
 1. Go to [releases page](https://github.com/zambrinf/simple-task-timer/releases) and find the latest release.
 2. Download the zip file corresponding to your operating system.
-3. Unzip the file to extract the executable.
+3. Unzip the file to extract the executable. (if you have any issues with Windows try building from source)
 4. Place the executable in a folder where it can create a file to store the tasks (make sure you have write permissions for this folder).
 5. Add this folder to your PATH.
 6. Open a new terminal and run `timer --help`.
